@@ -20,30 +20,30 @@ class TimeoutException(Exception):
     pass
 
 
-# @contextmanager
-# def time_limit(seconds):
-#     timer = threading.Timer(seconds, lambda: _thread.interrupt_main())
-#     timer.start()
-#     try:
-#         yield
-#     except KeyboardInterrupt:
-#         raise TimeoutException()
-#     finally:
-#         timer.cancel()
+@contextmanager
+def time_limit(seconds):
+    timer = threading.Timer(seconds, lambda: _thread.interrupt_main())
+    timer.start()
+    try:
+        yield
+    except KeyboardInterrupt:
+        raise TimeoutException()
+    finally:
+        timer.cancel()
 
 
-# def time_it(func):
-#     '''
-#     Measures time
-#     '''
-#     def wrap(*args):
-#         time1 = time.time()
-#         ret = func(*args)
-#         time2 = time.time()
-#         print('\n{0} function took {1:.3f} ms'.format(
-#             func.__name__, (time2 - time1) * 1000.0))
-#         return ret
-#     return wrap
+def time_it(func):
+    '''
+    Measures time
+    '''
+    def wrap(*args):
+        time1 = time.time()
+        ret = func(*args)
+        time2 = time.time()
+        print('\n{0} function took {1:.3f} ms'.format(
+            func.__name__, (time2 - time1) * 1000.0))
+        return ret
+    return wrap
 
 
 def read_args():
@@ -104,7 +104,12 @@ def bb_recurcive(curr_cliuqe, graph_, c_node_list):
             GLOBAL_MAX_CLIQUE = curr_cliuqe
             curr_cliuqe = set(list(curr_cliuqe)[:len(curr_cliuqe) - 1])
     else:
+        guanos = [node for node in sorted(
+            nx.degree(graph_), key=lambda x: x[1], reverse=False)]
+        c_node_list = set([it[0] for it in guanos])
         for c_node in c_node_list:
+            if graph_.degree(c_node) + len(curr_cliuqe) < len(GLOBAL_MAX_CLIQUE):
+                continue
             buff = curr_cliuqe.copy()
             new_c_list = c_node_list & set(graph_.neighbors(c_node))
             if(len(new_c_list) + len(curr_cliuqe) + 1 >= len(GLOBAL_MAX_CLIQUE)):
@@ -113,7 +118,7 @@ def bb_recurcive(curr_cliuqe, graph_, c_node_list):
                 graph_buff.remove_nodes_from(graph_.nodes() - new_c_list)
                 bb_recurcive(buff, graph_buff, new_c_list)
 
-
+@time_it
 def find_max_clique_global(graph_):
     '''
     Branch and bound implementation, naive
@@ -125,11 +130,14 @@ def main():
     args = read_args()
     graph = parse_graph(args.path)
     try:
-        # with time_limit(args.time):
-        max_clq = find_max_clique_global(graph)
-        print(max_clq, len(max_clq))
+        with time_limit(args.time):
+            GLOBAL_MAX_CLIQUE = find_max_clique_approx(graph)
+            max_clq = find_max_clique_global(graph)
+            print(max_clq, len(max_clq))
     except KeyboardInterrupt:
-        print("Timed out! current maximum clique: ", GLOBAL_MAX_CLIQUE)
+        print("Interrupted! current maximum clique: ", GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
+    except TimeoutException:
+        print("Timed out! current maximum clique: ", GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
 
 
 if __name__ == '__main__':
