@@ -56,7 +56,7 @@ def read_args():
         May be limited in time with --time param")
     parser.add_argument('--path', type=str, default="/home/pavel/repos/max_clique_bnb/data/myciel3.col",
                         help='Path to graph dimacs-like format file')
-    parser.add_argument('--time', type=int, default=120,
+    parser.add_argument('--time', type=int, default=300,
                         help='Time limit in seconds')
     return parser.parse_args()
 
@@ -94,29 +94,34 @@ def bnb_get_max_clique(graph_):
     return GLOBAL_MAX_CLIQUE
 
 
-def bb_recurcive(curr_cliuqe, graph_, c_node_list):
+def bb_recurcive(curr_cliuqe, graph_, candidates_node_list):
     global GLOBAL_MAX_CLIQUE
     '''
     recursivly change global var GLOBAL_MAX_CLIQUE
     '''
-    if(len(c_node_list) == 0):
-        if len(curr_cliuqe) > len(GLOBAL_MAX_CLIQUE):
+    len_cur_c = len(curr_cliuqe) # size of current clique we want to expand
+    len_global_c = len(GLOBAL_MAX_CLIQUE) # size of current max clique
+    len_cand_list = len(candidates_node_list) # size of set with candidates able to expand our clique
+    if len_cand_list == 0:
+    # if candidates list is empty, check that current clique may by our maximum
+        if len_cur_c > len_global_c:
             GLOBAL_MAX_CLIQUE = curr_cliuqe
-            curr_cliuqe = set(list(curr_cliuqe)[:len(curr_cliuqe) - 1])
+            # throw last candidate out and give next candidates a chance
+            curr_cliuqe = set(list(curr_cliuqe)[:len_cur_c - 1])
     else:
-        guanos = [node for node in sorted(
-            nx.degree(graph_), key=lambda x: x[1], reverse=False)]
-        c_node_list = set([it[0] for it in guanos])
-        for c_node in c_node_list:
-            if graph_.degree(c_node) + len(curr_cliuqe) < len(GLOBAL_MAX_CLIQUE):
+        for c_node in candidates_node_list:
+            # check for each candidate ability to overcome our current max clique
+            if (graph_.degree(c_node) + len_cur_c) < len_global_c:
                 continue
             buff = curr_cliuqe.copy()
-            new_c_list = c_node_list & set(graph_.neighbors(c_node))
-            if(len(new_c_list) + len(curr_cliuqe) + 1 >= len(GLOBAL_MAX_CLIQUE)):
+            node_neighbours = set(graph_.neighbors(c_node))
+            new_cand_set = candidates_node_list & node_neighbours
+            if (len(new_cand_set) + len_cur_c + 1) >= len_global_c:
                 buff.add(c_node)
                 graph_buff = graph_.copy()
-                graph_buff.remove_nodes_from(graph_.nodes() - new_c_list)
-                bb_recurcive(buff, graph_buff, new_c_list)
+                graph_buff.remove_nodes_from(graph_.nodes() - new_cand_set)
+                bb_recurcive(buff, graph_buff, new_cand_set)
+
 
 @time_it
 def find_max_clique_global(graph_):
@@ -131,13 +136,16 @@ def main():
     graph = parse_graph(args.path)
     try:
         with time_limit(args.time):
-            GLOBAL_MAX_CLIQUE = find_max_clique_approx(graph)
+            # GLOBAL_MAX_CLIQUE = find_max_clique_approx(graph)
+            # print('heuristic find clique size: ', len(GLOBAL_MAX_CLIQUE))
             max_clq = find_max_clique_global(graph)
             print(max_clq, len(max_clq))
     except KeyboardInterrupt:
-        print("Interrupted! current maximum clique: ", GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
+        print("Interrupted! current maximum clique: ",
+              GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
     except TimeoutException:
-        print("Timed out! current maximum clique: ", GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
+        print("Timed out! current maximum clique: ",
+              GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
 
 
 if __name__ == '__main__':
