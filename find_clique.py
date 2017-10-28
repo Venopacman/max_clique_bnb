@@ -134,7 +134,9 @@ def main():
         with time_limit(args.time):
             max_clq = find_max_clique(graph)
             print(len(max_clq))
-            print(max_clq)
+            for n in max_clq:
+                print(n, end=' ')
+            print('\n')
     except KeyboardInterrupt:
         print("\n Interrupted! current maximum clique: ",
               GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
