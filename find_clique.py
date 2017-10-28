@@ -10,7 +10,7 @@ from networkx.algorithms.approximation import max_clique
 
 import _thread
 
-GLOBAL_MAX_CLIQUE = set()
+GLOBAL_MAX_CLIQUE = list()
 '''
 our maximum clique
 '''
@@ -54,7 +54,7 @@ def read_args():
     parser = argparse.ArgumentParser(
         description="Find first maxsize clique for grapth specified in --path param.\
         May be limited in time with --time param")
-    parser.add_argument('--path', type=str, default="/home/pavel/repos/max_clique_bnb/data/myciel3.col",
+    parser.add_argument('--path', type=str, default="/data/johnson8-2-4.clq.txt",
                         help='Path to graph dimacs-like format file')
     parser.add_argument('--time', type=int, default=300,
                         help='Time limit in seconds')
@@ -69,10 +69,7 @@ def parse_graph(path):
     with open(path, 'r') as g_file:
         for edge_line in g_file:
             # edge_line starts with p contains num_of_vertices and num_of_edges
-            if edge_line.startswith('p'):
-                _, name, vertices_num, edges_num = edge_line.split()
-                print('{0} {1} {2}'.format(name, vertices_num, edges_num))
-            elif edge_line.startswith('e'):
+            if edge_line.startswith('e'):
                 _, v1, v2 = edge_line.split()
                 edges_list.append((v1, v2))
             else:
@@ -89,42 +86,41 @@ def find_max_clique_approx(graph_):
 
 def bnb_get_max_clique(graph_):
     global GLOBAL_MAX_CLIQUE
-    guano = set()
-    bb_recurcive(guano, graph_, graph_.nodes())
+    bb_recurcive(list(), graph_, list(graph_.nodes()))
     return GLOBAL_MAX_CLIQUE
 
 
-def bb_recurcive(curr_cliuqe, graph_, candidates_node_list):
+def bb_recurcive(curr_clique, graph_, candidates_node_list):
     global GLOBAL_MAX_CLIQUE
     '''
     recursivly change global var GLOBAL_MAX_CLIQUE
     '''
-    len_cur_c = len(curr_cliuqe) # size of current clique we want to expand
-    len_global_c = len(GLOBAL_MAX_CLIQUE) # size of current max clique
-    len_cand_list = len(candidates_node_list) # size of set with candidates able to expand our clique
+    len_cur_c = len(curr_clique)  # size of current clique we want to expand
+    len_global_c = len(GLOBAL_MAX_CLIQUE)  # size of current max clique
+    # size of set with candidates able to expand our clique
+    len_cand_list = len(candidates_node_list)
     if len_cand_list == 0:
-    # if candidates list is empty, check that current clique may by our maximum
+        # if candidates list is empty, check that current clique may by our maximum
         if len_cur_c > len_global_c:
-            GLOBAL_MAX_CLIQUE = curr_cliuqe
+            GLOBAL_MAX_CLIQUE = curr_clique
             # throw last candidate out and give next candidates a chance
-            curr_cliuqe = set(list(curr_cliuqe)[:len_cur_c - 1])
+        curr_clique = curr_clique[:len_cur_c - 1]
     else:
         for c_node in candidates_node_list:
             # check for each candidate ability to overcome our current max clique
             if (graph_.degree(c_node) + len_cur_c) < len_global_c:
                 continue
-            buff = curr_cliuqe.copy()
-            node_neighbours = set(graph_.neighbors(c_node))
-            new_cand_set = candidates_node_list & node_neighbours
+            buff = curr_clique.copy()
+            new_cand_set = list(graph_.neighbors(c_node))
             if (len(new_cand_set) + len_cur_c + 1) >= len_global_c:
-                buff.add(c_node)
+                buff.append(c_node)
                 graph_buff = graph_.copy()
                 graph_buff.remove_nodes_from(graph_.nodes() - new_cand_set)
                 bb_recurcive(buff, graph_buff, new_cand_set)
 
 
 @time_it
-def find_max_clique_global(graph_):
+def find_max_clique(graph_):
     '''
     Branch and bound implementation, naive
     '''
@@ -136,15 +132,14 @@ def main():
     graph = parse_graph(args.path)
     try:
         with time_limit(args.time):
-            # GLOBAL_MAX_CLIQUE = find_max_clique_approx(graph)
-            # print('heuristic find clique size: ', len(GLOBAL_MAX_CLIQUE))
-            max_clq = find_max_clique_global(graph)
-            print(max_clq, len(max_clq))
+            max_clq = find_max_clique(graph)
+            print(len(max_clq))
+            print(max_clq)
     except KeyboardInterrupt:
-        print("Interrupted! current maximum clique: ",
+        print("\n Interrupted! current maximum clique: ",
               GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
     except TimeoutException:
-        print("Timed out! current maximum clique: ",
+        print("\n Timed out! current maximum clique: ",
               GLOBAL_MAX_CLIQUE, len(GLOBAL_MAX_CLIQUE))
 
 
